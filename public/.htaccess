@@ -1,4 +1,77 @@
+# ----------------------------------------------------
+# .htaccess para pasta public/
+# Responsável por:
+# - Reescrita de URLs amigáveis para front controller
+# - Configuração charset padrão
+# - Compressão gzip para performance
+# - Configurações CORS para APIs
+# - Cabeçalhos HTTP básicos de segurança
+# ----------------------------------------------------
+
+# Habilita o mecanismo de reescrita de URLs
 RewriteEngine On
+
+# Define a base da URL para o projeto (ajuste conforme necessário)
+RewriteBase /mini-erp/public/
+
+# Redireciona todas as requisições para index.php,
+# exceto quando o arquivo ou diretório existir (assets, imagens, etc)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
+
+# Define charset padrão UTF-8 para todas as respostas
+AddDefaultCharset UTF-8
+
+# -----------------------------------------
+# Compressão gzip para melhorar desempenho
+# -----------------------------------------
+<IfModule mod_deflate.c>
+  # Aplica compressão para os tipos de conteúdo comuns de texto e JSON
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml text/plain
+
+  # Compatibilidade com browsers antigos
+  BrowserMatch ^Mozilla/4 gzip-only-text/html
+  BrowserMatch ^Mozilla/4\.0[678] no-gzip
+  BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+</IfModule>
+
+# -----------------------------------------
+# Cabeçalhos HTTP para CORS e segurança
+# -----------------------------------------
+<IfModule mod_headers.c>
+  # Permite acesso cross-origin (ajuste para ambiente de produção)
+  Header always set Access-Control-Allow-Origin "*"
+  
+  # Métodos HTTP permitidos para CORS
+  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  
+  # Cabeçalhos customizados permitidos para CORS
+  Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+  
+  # Cache para requisições OPTIONS (preflight)
+  Header always set Access-Control-Max-Age "86400"
+  
+  # Segurança básica via headers HTTP
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set Referrer-Policy "no-referrer-when-downgrade"
+  
+  # Recomendado para HTTPS (se aplicável)
+  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+</IfModule>
+
+# -----------------------------------------
+# Tratamento de requisições OPTIONS (CORS preflight)
+# Retorna sucesso imediato para essas requisições
+# -----------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteCond %{REQUEST_METHOD} OPTIONS
+  RewriteRule ^ - [R=200,L]
+</IfModule>
+
+# -----------------------------------------
+# Desativa listagem de diretórios para segurança
+# -----------------------------------------
+Options -Indexes
