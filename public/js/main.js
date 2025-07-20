@@ -2,7 +2,7 @@
  * main.js
  * Arquivo principal JS para scripts globais da aplicação
  * Estrutura mínima, modular e robusta para futuras expansões
- * Autor: Seu Nome | Projeto Mini ERP
+ * Autor: Matheus Diamantino | Projeto Mini ERP
  * Data: 2025
  */
 
