@@ -1,129 +1,170 @@
 <?php
+// Inclusão dos arquivos essenciais: configuração, conexão com banco, modelo Produto e controller
 require_once __DIR__.'/../config/config.php';
+require_once __DIR__.'/../core/Database.php';
 require_once __DIR__.'/../models/Produto.php';
 require_once __DIR__.'/../controllers/ProdutoController.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *'); 
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+// Configurações dos cabeçalhos HTTP para permitir CORS e definir o tipo de conteúdo JSON UTF-8
+header('Access-Control-Allow-Origin: *'); // Permite requisições de qualquer origem (útil para desenvolvimento)
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS'); // Métodos HTTP permitidos
+header('Access-Control-Allow-Headers: Content-Type, Authorization'); // Cabeçalhos permitidos na requisição
+header('Content-Type: application/json; charset=utf-8'); // Define que o conteúdo da resposta será JSON UTF-8
 
+// Responde diretamente para requisições OPTIONS (pré voo do CORS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
+// Tenta criar conexão com o banco de dados via classe Database
 try {
-    $pdo = new PDO("mysql:host=".DB_HOST.";dbname=mini_erp;charset=utf8mb4", DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-    ]);
-} catch (PDOException $e) {
+    $db = new Database();
+} catch (Exception $e) {
+    // Em caso de erro na conexão, retorna código 500 e mensagem JSON
     http_response_code(500);
-    echo json_encode(['error' => 'Erro na conexão com banco']);
+    echo json_encode(['error' => 'Erro na conexão com banco'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-$controller = new ProdutoController($pdo);
+// Instancia o controller responsável pelas operações de Produto
+$controller = new ProdutoController($db);
 
+// Obtém o método HTTP da requisição (GET, POST, PUT, DELETE, etc.)
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = $_SERVER['REQUEST_URI'];
-// Assumindo URL tipo /api/produtos.php ou /api/produtos.php?id=1
 
-$id = $_GET['id'] ?? null;
+// Obtém o parâmetro 'id' da query string, caso exista (para buscar/atualizar/deletar produto específico)
+$id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
+// Switch para tratar cada método HTTP de forma apropriada
 switch ($method) {
+
     case 'GET':
         if ($id) {
-            $produto = $controller->buscarPorId((int)$id);
+            // Busca produto específico pelo ID
+            $produto = $controller->buscarPorId($id);
             if ($produto) {
-                echo json_encode([
-                    'id' => $produto->getId(),
-                    'nome' => $produto->getNome(),
-                    'preco' => $produto->getPreco(),
-                    'criado_em' => $produto->getCriadoEm()
-                ]);
+                // Retorna o produto encontrado como array JSON
+                echo json_encode($produto->toArray(), JSON_UNESCAPED_UNICODE);
             } else {
+                // Produto não encontrado: retorna status 404
                 http_response_code(404);
-                echo json_encode(['error' => 'Produto não encontrado']);
+                echo json_encode(['error' => 'Produto não encontrado'], JSON_UNESCAPED_UNICODE);
             }
         } else {
+            // Sem ID, lista todos os produtos cadastrados
             $produtos = $controller->listarTodos();
-            $data = [];
-            foreach ($produtos as $p) {
-                $data[] = [
-                    'id' => $p->getId(),
-                    'nome' => $p->getNome(),
-                    'preco' => $p->getPreco(),
-                    'criado_em' => $p->getCriadoEm()
-                ];
-            }
-            echo json_encode($data);
+
+            // Converte array de objetos Produto para arrays simples para JSON
+            $data = array_map(fn($p) => $p->toArray(), $produtos);
+
+            echo json_encode($data, JSON_UNESCAPED_UNICODE);
         }
-        break;
+        exit;
 
     case 'POST':
+        // Lê dados JSON enviados no corpo da requisição para criação de produto
         $input = json_decode(file_get_contents('php://input'), true);
+
+        // Valida se os dados obrigatórios foram enviados
         if (!$input || !isset($input['nome'], $input['preco'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Dados inválidos']);
+            echo json_encode(['error' => 'Dados inválidos ou incompletos'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $produto = new Produto($input['nome'], (float)$input['preco']);
-        $success = $controller->salvar($produto);
-        if ($success) {
-            http_response_code(201);
-            echo json_encode(['message' => 'Produto criado', 'id' => $produto->getId()]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Falha ao salvar produto']);
+
+        try {
+            // Cria um novo objeto Produto com os dados fornecidos
+            $produto = new Produto($input['nome'], (float)$input['preco']);
+
+            // Tenta salvar o produto no banco via controller
+            $success = $controller->salvar($produto);
+
+            if ($success) {
+                http_response_code(201); // Created
+                echo json_encode(['message' => 'Produto criado', 'id' => $produto->getId()], JSON_UNESCAPED_UNICODE);
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'Falha ao salvar produto'], JSON_UNESCAPED_UNICODE);
+            }
+        } catch (InvalidArgumentException $ex) {
+            // Captura exceções de validação e retorna erro 400 com mensagem
+            http_response_code(400);
+            echo json_encode(['error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
         }
-        break;
+        exit;
 
     case 'PUT':
+        // Para atualizar, é obrigatório informar o ID via query string
         if (!$id) {
             http_response_code(400);
-            echo json_encode(['error' => 'ID necessário para atualizar']);
+            echo json_encode(['error' => 'ID necessário para atualizar'], JSON_UNESCAPED_UNICODE);
             exit;
         }
+
+        // Lê dados JSON para atualização do produto
         $input = json_decode(file_get_contents('php://input'), true);
+
+        // Valida se os dados obrigatórios para atualização foram enviados
         if (!$input || !isset($input['nome'], $input['preco'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Dados inválidos']);
+            echo json_encode(['error' => 'Dados inválidos ou incompletos'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $produto = $controller->buscarPorId((int)$id);
+
+        // Busca o produto existente para alterar
+        $produto = $controller->buscarPorId($id);
+
         if (!$produto) {
+            // Produto não encontrado: retorna 404
             http_response_code(404);
-            echo json_encode(['error' => 'Produto não encontrado']);
+            echo json_encode(['error' => 'Produto não encontrado'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $produto->setNome($input['nome']);
-        $produto->setPreco((float)$input['preco']);
-        $success = $controller->salvar($produto);
-        if ($success) {
-            echo json_encode(['message' => 'Produto atualizado']);
-        } else {
-            http_response_code(500);
-            echo json_encode(['error' => 'Falha ao atualizar produto']);
+
+        try {
+            // Atualiza os dados do produto com os valores recebidos
+            $produto->setNome($input['nome']);
+            $produto->setPreco((float)$input['preco']);
+
+            // Salva as alterações no banco via controller
+            $success = $controller->salvar($produto);
+
+            if ($success) {
+                echo json_encode(['message' => 'Produto atualizado'], JSON_UNESCAPED_UNICODE);
+            } else {
+                http_response_code(500);
+                echo json_encode(['error' => 'Falha ao atualizar produto'], JSON_UNESCAPED_UNICODE);
+            }
+        } catch (InvalidArgumentException $ex) {
+            // Captura exceções de validação e retorna erro 400
+            http_response_code(400);
+            echo json_encode(['error' => $ex->getMessage()], JSON_UNESCAPED_UNICODE);
         }
-        break;
+        exit;
 
     case 'DELETE':
+        // Para deletar, é obrigatório informar o ID via query string
         if (!$id) {
             http_response_code(400);
-            echo json_encode(['error' => 'ID necessário para deletar']);
+            echo json_encode(['error' => 'ID necessário para deletar'], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        $success = $controller->deletar((int)$id);
+
+        // Tenta deletar o produto pelo ID informado
+        $success = $controller->deletar($id);
+
         if ($success) {
-            echo json_encode(['message' => 'Produto deletado']);
+            echo json_encode(['message' => 'Produto deletado'], JSON_UNESCAPED_UNICODE);
         } else {
             http_response_code(500);
-            echo json_encode(['error' => 'Falha ao deletar produto']);
+            echo json_encode(['error' => 'Falha ao deletar produto'], JSON_UNESCAPED_UNICODE);
         }
-        break;
+        exit;
 
     default:
+        // Retorna erro 405 para métodos HTTP não permitidos
         http_response_code(405);
-        echo json_encode(['error' => 'Método não permitido']);
+        echo json_encode(['error' => 'Método não permitido'], JSON_UNESCAPED_UNICODE);
+        exit;
 }
