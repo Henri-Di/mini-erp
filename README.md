@@ -107,7 +107,9 @@ CREATE TABLE pedidos (
     cupom_id INT DEFAULT NULL,
     data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cupom_id) REFERENCES cupons(id)
-);
+); 
+
+```
 
 # Arquitetura do Sistema
 
