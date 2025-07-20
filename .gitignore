@@ -1,0 +1,71 @@
+# === PHP ===
+*.log
+*.cache
+*.tmp
+*.swp
+*.bak
+*.sql
+*.sqlite
+*.env
+.env.*
+.phpunit.result.cache
+
+# === Composer ===
+/vendor/
+/composer.lock
+
+# Se preferir versionar o composer.lock, remova a linha acima
+
+# === IDEs ===
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# === Sistema operacional ===
+.DS_Store
+Thumbs.db
+
+# === Node/npm (caso use frontend moderno) ===
+node_modules/
+dist/
+build/
+
+# === Arquivos temporários ===
+*.~*
+*.orig
+
+# === Arquivos de upload ou locais ===
+/uploads/
+/storage/
+/public/uploads/
+/public/files/
+
+# === Testes ou mock ===
+tests/tmp/
+coverage/
+
+# === Docker ou ambiente ===
+docker-compose.override.yml
+.env.local
+.env.dev
+.env.test
+.env.production
+
+# === Cache geral ===
+/cache/
+/tmp/
+/var/cache/
+/var/log/
+
+# === Banco de dados local ===
+*.sqlite3
+*.db
+*.sql.gz
+
+# === Laravel (se usar futuramente) ===
+/bootstrap/cache/
+/storage/logs/
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/framework/cache/
