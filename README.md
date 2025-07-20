@@ -1,245 +1,230 @@
-﻿\# Mini ERP - Controle de Pedidos, Produtos, Cupons e Estoque ## Índice 
+﻿# Mini ERP - Controle de Pedidos, Produtos, Cupons e Estoque
+
+---
+
+## Índice
+
+- [Descrição do Projeto](#descrição-do-projeto)  
+- [Tecnologias Utilizadas](#tecnologias-utilizadas)  
+- [Banco de Dados](#banco-de-dados)  
+  - [Estrutura das Tabelas](#estrutura-das-tabelas)  
+  - [Script SQL para Criação do Banco](#script-sql-para-criação-do-banco)  
+- [Arquitetura do Sistema](#arquitetura-do-sistema)  
+  - [Padrão MVC](#padrão-mvc)  
+- [Funcionalidades](#funcionalidades)  
+  - [Cadastro de Produtos](#cadastro-de-produtos)  
+  - [Controle de Estoque](#controle-de-estoque)  
+  - [Cadastro e Aplicação de Cupons](#cadastro-e-aplicação-de-cupons)  
+  - [Carrinho de Compras](#carrinho-de-compras)  
+  - [Cálculo do Frete](#cálculo-do-frete)  
+  - [Validação de CEP via ViaCEP](#validação-de-cep-via-viacep)  
+  - [Finalização do Pedido e Envio de E-mail](#finalização-do-pedido-e-envio-de-e-mail)  
+  - [Webhook para Atualização de Status do Pedido](#webhook-para-atualização-de-status-do-pedido)  
+- [Regras de Negócio e Validações](#regras-de-negócio-e-validações)  
+- [Boas Práticas de Desenvolvimento](#boas-práticas-de-desenvolvimento)  
+- [Instruções para Execução](#instruções-para-execução)  
+- [Considerações Finais](#considerações-finais)  
+
+---
 
-- [Descrição do Projeto](#descrição-do-projeto)   
-- [Tecnologias Utilizadas](#tecnologias-utilizadas)   
-- [Banco de Dados](#banco-de-dados)   
-  - [Estrutura das Tabelas](#estrutura-das-tabelas)   
-  - [Script SQL para criação do banco](#script-sql-para-criação-do-banco)   
-- [Arquitetura do Sistema](#arquitetura-do-sistema)   
-  - [Padrão MVC](#padrão-mvc)   
-- [Funcionalidades](#funcionalidades)   
-  - [Cadastro de Produtos](#cadastro-de-produtos)   
-  - [Controle de Estoque](#controle-de-estoque)   
-  - [Cadastro e Aplicação de Cupons](#cadastro-e-aplicação-de-cupons)   
-  - [Carrinho de Compras](#carrinho-de-compras)   
-  - [Cálculo do Frete](#cálculo-do-frete)   
-  - [Validação de CEP via ViaCEP](#validação-de-cep-via-viacep)   
-  - [Finalização do Pedido e Envio de E-mail](#finalização-do-pedido-e-envio-de-email)   
-  - [Webhook para Atualização de Status do Pedido](#webhook-para-atualização-de-status-do-
+## Descrição do Projeto
 
-pedido)   
+Este **Mini ERP** foi desenvolvido para oferecer um sistema simples e eficiente de controle de **Pedidos, Produtos, Cupons e Estoque**.
 
-- [Regras de Negócio e Validações](#regras-de-negócio-e-validações)   
-- [Boas Práticas de Desenvolvimento](#boas-práticas-de-desenvolvimento)   
-- [Instruções para Execução](#instruções-para-execução)   
-- [Considerações Finais](#considerações-finais)   
+A aplicação permite o cadastro e gerenciamento de produtos com variações, controle detalhado do estoque, aplicação de cupons de desconto com regras específicas e um carrinho de compras com cálculo dinâmico de frete.
 
-\--- 
+Além disso, integra-se à API pública ViaCEP para validação de CEPs e envia automaticamente e-mails de confirmação dos pedidos.
 
-\## Descrição do Projeto 
+Um webhook REST permite atualização e cancelamento dos pedidos em tempo real.
 
-Mini ERP desenvolvido para o controle simplificado de Pedidos, Produtos, Cupons e Estoque. A aplicação permite cadastro e atualização de produtos, variações e estoque, controle do carrinho de compras com cálculo dinâmico de frete e aplicação de cupons com regras de validade e valores mínimos. Inclui integração com API ViaCEP para validação de endereço via CEP, envio automático de e-mail ao finalizar pedido e webhook para atualização e cancelamento de pedidos. 
+---
 
-\--- 
+## Tecnologias Utilizadas
 
-\## Tecnologias Utilizadas 
+| Camada           | Tecnologias                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Backend          | PHP Puro (sem frameworks)                                                                   |
+| Frontend         | HTML5, Bootstrap 5 (CSS e JavaScript)                                                      |
+| Banco de Dados   | MySQL                                                                                      |
+| Integrações      | - API ViaCEP para validação de CEP<br>- Biblioteca PHPMailer para envio de e-mails<br>- Webhook REST para atualização de status dos pedidos |
 
-- \*\*Backend:\*\* PHP Puro (Sem frameworks)   
-- \*\*Frontend:\*\* HTML5, Bootstrap 5 (CSS e JS)   
-- \*\*Banco de Dados:\*\* MySQL   
-- \*\*Integrações:\*\*   
-  - ViaCEP API para validação de CEP   
-  - Biblioteca PHPMailer para envio de e-mails   
-  - Webhook REST para atualização de pedidos   
+---
 
-\--- 
+## Banco de Dados
 
-\## Banco de Dados 
+### Estrutura das Tabelas
 
-\### Estrutura das Tabelas 
+| Tabela    | Descrição                                  | Principais Campos                                              |
+| --------- | ----------------------------------------- | ------------------------------------------------------------- |
+| produtos  | Armazena os produtos e suas variações     | id, nome, preco, variacoes (JSON), timestamps                 |
+| estoque   | Controle de estoque por produto e variação | id, produto_id (FK), variacao, quantidade                     |
+| cupons    | Cupons de desconto com validade e regras  | id, codigo, desconto_percentual, validade_inicio, validade_fim, valor_minimo |
+| pedidos   | Registra os pedidos realizados             | id, cliente_nome, cliente_email, cliente_cep, status, subtotal, frete, cupom_id, data_pedido |
 
-| Tabela     | Descrição                                       | Principais Campos                                             | 
+---
 
-|------------|------------------------------------------------|------------------------------------------------------------- -| 
+### Script SQL para Criação do Banco
 
-| `produtos` | Armazena os produtos e suas variações          | id, nome, preco, variacoes (JSON), data\_criacao, data\_atualizacao | 
+```sql
+CREATE DATABASE mini_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-| `estoque`  | Controle de estoque por produto e variação     | id, produto\_id (FK), variacao, quantidade                     | 
+USE mini_erp;
 
-| `pedidos`  | Registra os pedidos realizados                  | id, cliente\_nome, cliente\_email, cliente\_cep, status, subtotal, frete, cupom\_id, data\_pedido | 
+CREATE TABLE produtos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    preco DECIMAL(10,2) NOT NULL,
+    variacoes JSON DEFAULT NULL,
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
-| `cupons`   | Cupons de desconto com validade e regras       | id, codigo, desconto\_percentual, validade\_inicio, validade\_fim, valor\_minimo | 
+CREATE TABLE estoque (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    produto_id INT NOT NULL,
+    variacao VARCHAR(255) DEFAULT NULL,
+    quantidade INT DEFAULT 0,
+    FOREIGN KEY (produto_id) REFERENCES produtos(id) ON DELETE CASCADE
+);
 
-\--- 
+CREATE TABLE cupons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(50) NOT NULL UNIQUE,
+    desconto_percentual INT NOT NULL,
+    validade_inicio DATE NOT NULL,
+    validade_fim DATE NOT NULL,
+    valor_minimo DECIMAL(10,2) NOT NULL
+);
 
-\### Script SQL para criação do banco 
+CREATE TABLE pedidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_nome VARCHAR(255) NOT NULL,
+    cliente_email VARCHAR(255) NOT NULL,
+    cliente_cep VARCHAR(20) NOT NULL,
+    status ENUM('pendente', 'aprovado', 'cancelado') DEFAULT 'pendente',
+    subtotal DECIMAL(10,2) NOT NULL,
+    frete DECIMAL(10,2) NOT NULL,
+    cupom_id INT DEFAULT NULL,
+    data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cupom_id) REFERENCES cupons(id)
+);
 
-\```sql 
+# Arquitetura do Sistema
 
-CREATE DATABASE mini\_erp CHARACTER SET utf8mb4 COLLATE utf8mb4\_unicode\_ci; 
+## Padrão MVC
 
-USE mini\_erp; 
+- **Model:**  
+  Responsável pela manipulação dos dados e acesso ao banco MySQL, contendo as classes para **Produto**, **Estoque**, **Pedido** e **Cupom**.
 
-CREATE TABLE produtos ( 
+- **View:**  
+  Páginas HTML estruturadas com Bootstrap para exibição de formulários, tabelas, listagens e modais.
 
-`    `id INT AUTO\_INCREMENT PRIMARY KEY,     nome VARCHAR(255) NOT NULL, 
+- **Controller:**  
+  Controladores que recebem as requisições do usuário, processam a lógica de negócio, interagem com os Models e retornam as Views ou respostas JSON para requisições AJAX.
 
-`    `preco DECIMAL(10,2) NOT NULL, 
+> Essa separação facilita a manutenção, testes e extensões futuras do sistema.
 
-`    `variacoes JSON DEFAULT NULL, 
+---
 
-data\_criacao TIMESTAMP DEFAULT CURRENT\_TIMESTAMP, 
+# Funcionalidades
 
-`    `data\_atualizacao TIMESTAMP DEFAULT CURRENT\_TIMESTAMP ON UPDATE CURRENT\_TIMESTAMP 
+## Cadastro de Produtos
 
-); 
+- Inserção e edição de produtos com nome, preço e variações opcionais (armazenadas em JSON).
+- Interface dinâmica para adicionar múltiplas variações, como tamanho e cor, cada uma com controle individual de estoque.
 
-CREATE TABLE estoque ( 
+## Controle de Estoque
 
-`    `id INT AUTO\_INCREMENT PRIMARY KEY, 
+- Controle detalhado por produto e variação.
+- Atualização manual ou automática do estoque durante o processo de compra.
 
-`    `produto\_id INT NOT NULL, 
+## Cadastro e Aplicação de Cupons
 
-`    `variacao VARCHAR(255) DEFAULT NULL, 
+- Interface para criação e gerenciamento de cupons com código, percentual de desconto, período de validade e valor mínimo para aplicação.
+- Validação dos cupons no momento da finalização do pedido.
 
-`    `quantidade INT DEFAULT 0, 
+## Carrinho de Compras
 
-`    `FOREIGN KEY (produto\_id) REFERENCES produtos(id) ON DELETE CASCADE ); 
+- Implementado usando sessões PHP para manter estado entre requisições.
+- Adição de produtos e variações ao carrinho com controle de quantidade, subtotal, cupons aplicados e cálculo dinâmico do frete.
 
-CREATE TABLE cupons ( 
+## Cálculo do Frete
 
-`    `id INT AUTO\_INCREMENT PRIMARY KEY,     codigo VARCHAR(50) NOT NULL UNIQUE, 
+| Subtotal do Pedido          | Valor do Frete  |
+|----------------------------|-----------------|
+| Entre R$ 52,00 e R$ 166,59 | R$ 15,00        |
+| Acima de R$ 200,00         | Frete grátis    |
+| Outros valores             | Frete padrão R$ 20,00 |
 
-`    `desconto\_percentual INT NOT NULL, 
+## Validação de CEP via ViaCEP
 
-`    `validade\_inicio DATE NOT NULL, 
+- Consulta automática à API pública ViaCEP para validar o CEP informado na finalização do pedido.
+- Bloqueio da finalização caso o CEP seja inválido, solicitando correção.
 
-`    `validade\_fim DATE NOT NULL, 
+## Finalização do Pedido e Envio de E-mail
 
-`    `valor\_minimo DECIMAL(10,2) NOT NULL ); 
+- Salva o pedido no banco com status **"pendente"** após confirmação dos dados.
+- Envia e-mail automático ao cliente com detalhes do pedido, endereço e status, utilizando **PHPMailer**.
 
-CREATE TABLE pedidos ( 
+## Webhook para Atualização de Status do Pedido
 
-`    `id INT AUTO\_INCREMENT PRIMARY KEY, 
+- Endpoint REST que recebe atualizações em JSON contendo o **id** e novo **status** do pedido.
+- Permite cancelar pedidos (removendo do banco) ou atualizar status conforme necessidade.
 
-`    `cliente\_nome VARCHAR(255) NOT NULL, 
+---
 
-`    `cliente\_email VARCHAR(255) NOT NULL, 
+# Regras de Negócio e Validações
 
-`    `cliente\_cep VARCHAR(20) NOT NULL, 
+- Validação rigorosa tanto no frontend (HTML, Bootstrap, JavaScript) quanto no backend (PHP).
+- Controle de estoque para evitar vendas de produtos indisponíveis.
+- Cupons só podem ser aplicados dentro do prazo de validade e respeitando valor mínimo de compra.
+- Atualização do estoque ocorre somente após confirmação e finalização do pedido.
+- Garantia de consistência entre preços, variações e estoque para evitar inconsistências.
+- CEP inválido bloqueia finalização para garantir entrega correta.
 
-`    `status ENUM('pendente', 'aprovado', 'cancelado') DEFAULT 'pendente',     subtotal DECIMAL(10,2) NOT NULL, 
+---
 
-`    `frete DECIMAL(10,2) NOT NULL, 
+# Boas Práticas de Desenvolvimento
 
-`    `cupom\_id INT DEFAULT NULL, 
+- Organização clara do código em pastas seguindo o padrão MVC (`models/`, `views/`, `controllers/`).
+- Uso de **prepared statements** para evitar ataques de SQL Injection.
+- Sanitização e validação de todos os dados recebidos do usuário.
+- Utilização de sessões para manter o estado do carrinho.
+- Comentários explicativos e nomenclaturas claras para facilitar entendimento e manutenção.
+- Tratamento de erros amigável ao usuário.
+- Modularização para escalabilidade futura.
 
-`    `data\_pedido TIMESTAMP DEFAULT CURRENT\_TIMESTAMP, 
+---
 
-`    `FOREIGN KEY (cupom\_id) REFERENCES cupons(id) 
+# Instruções para Execução
 
-); 
+1. **Configurar Banco de Dados:**  
+   - Importar o script SQL para criar o banco e as tabelas.  
+   - Ajustar as credenciais no arquivo `config.php` (host, usuário, senha, nome do banco).
 
-Arquitetura do Sistema 
+2. **Configurar Servidor PHP:**  
+   - Utilizar Apache ou Nginx com PHP 7.4 ou superior.  
+   - Definir a pasta `public/` como document root.
 
-Padrão MVC 
+3. **Instalar Dependências:**  
+   - Caso use PHPMailer, instalar via Composer ou manualmente.
 
-Model: Responsável pela manipulação de dados, acesso e persistência no banco MySQL. Inclui classes para Produto, Estoque, Pedido e Cupom. 
+4. **Acessar a Aplicação:**  
+   - Abrir a URL no navegador configurada para o projeto.  
+   - Navegar para o cadastro de produtos, controle de estoque e realizar testes de compra.
 
-View: Páginas HTML utilizando Bootstrap para a interface, formulários, listagens e modais. 
+---
 
-Controller: Controladores que recebem as requisições, tratam a lógica, chamam os Models e retornam Views ou respostas JSON (para AJAX). 
+# Considerações Finais
 
-A separação clara facilita manutenção, testes e extensão futura. 
+Este sistema Mini ERP é simples e modular, ideal para pequenas operações comerciais que necessitam controle básico de pedidos e estoque.
 
-Funcionalidades Cadastro de Produtos 
+Sua arquitetura MVC facilita futuras expansões, como a inclusão de dashboards, relatórios detalhados e autenticação de usuários.
 
-Permite inserir e editar produtos com nome, preço e variações (opcionalmente armazenadas em JSON). 
+O uso de PHP puro demonstra domínio técnico e atenção às boas práticas, enquanto a integração com APIs externas (ViaCEP e PHPMailer) agrega funcionalidades importantes para a experiência do usuário e operacional.
 
-Variações podem ser adicionadas dinamicamente via interface (ex: tamanho, cor). Cada variação possui seu próprio controle de estoque. 
+> **Sinta-se à vontade para customizar e expandir este projeto conforme as necessidades do seu negócio.**
 
-Controle de Estoque 
+---
 
-Estoque controlado por produto e variação. 
-
-Permite atualização manual do estoque. 
-
-Em processos de compra, o estoque é conferido e atualizado automaticamente. Cadastro e Aplicação de Cupons 
-
-Interface para criação e gerenciamento de cupons com: código, percentual de desconto, validade e valor mínimo para aplicar. 
-
-Cupons aplicados são validados contra as regras no momento da finalização do pedido. 
-
-Carrinho de Compras Implementado via sessão PHP. 
-
-Permite adicionar produtos (com variações) ao carrinho. 
-
-Controla quantidade, subtotal, cupons aplicados e cálculo de frete. 
-
-Cálculo do Frete 
-
-Regras baseadas no subtotal do pedido: 
-
-Subtotal entre R$52,00 e R$166,59 → frete R$15,00 
-
-Subtotal maior que R$200,00 → frete grátis Outros valores → frete R$20,00 
-
-Validação de CEP via ViaCEP 
-
-Na finalização do pedido, o CEP é validado através da API pública https://viacep.com.br/. 
-
-Caso CEP inválido, impede a conclusão do pedido, solicitando correção. 
-
-Finalização do Pedido e Envio de E-mail 
-
-Após confirmação dos dados, pedido é salvo no banco com status "pendente". 
-
-Um e-mail automático é enviado ao cliente com detalhes do pedido, endereço e status. PHPMailer é utilizado para o envio de e-mails. 
-
-Webhook para Atualização de Status do Pedido 
-
-Endpoint REST que recebe JSON com id e status do pedido. 
-
-Se status for cancelado, o pedido é removido do banco. 
-
-Para outros status, atualiza o status do pedido correspondente. 
-
-Regras de Negócio e Validações 
-
-Validação de formulário no frontend (Bootstrap + JS) e backend (PHP). 
-
-Controle de estoque evita venda de produtos indisponíveis. 
-
-Cupons só podem ser usados dentro da validade e se o subtotal mínimo for alcançado. Atualização do estoque ocorre apenas após confirmação do pedido. 
-
-Preço e variações dos produtos são consistentes com o estoque para evitar inconsistências. CEP inválido bloqueia finalização do pedido para garantir entrega correta. 
-
-Boas Práticas de Desenvolvimento 
-
-Código organizado em pastas MVC (models/, views/, controllers/). 
-
-Uso de prepared statements para evitar SQL Injection. 
-
-Sanitização e validação dos dados do usuário em todas as entradas. Uso de sessões para manter estado do carrinho. 
-
-Comentários e nomenclaturas claras para fácil entendimento. Tratamento de erros com mensagens amigáveis ao usuário. Modularização do código para fácil manutenção e escalabilidade. 
-
-Instruções para Execução Configurar Banco: 
-
-Importar o script SQL fornecido em um servidor MySQL. 
-
-Ajustar credenciais no arquivo config.php (host, usuário, senha, banco). Configurar Servidor PHP: 
-
-Usar Apache/Nginx com PHP 7.4+ ou superior. 
-
-Definir document\_root para a pasta public/. 
-
-Instalar Dependências: 
-
-Se usar PHPMailer, instalar via composer ou manualmente. Acessar Sistema: 
-
-Via browser, abrir URL da aplicação. 
-
-Navegar até tela de produtos para cadastro. 
-
-Testar o fluxo de compra e finalização. 
-
-Considerações Finais 
-
-O sistema é simples e modular, adequado para pequenas operações. 
-
-Pode ser facilmente expandido com funcionalidades adicionais como relatórios, dashboard, autenticação. 
-
-A separação MVC facilita futuras migrações para frameworks. 
-
-O uso do PHP puro demonstra domínio da linguagem e atenção às boas práticas. Integração com APIs externas e envio de e-mails agregam valor real ao sistema. 
+*Desenvolvido com foco em simplicidade, escalabilidade e boas práticas de desenvolvimento.*
