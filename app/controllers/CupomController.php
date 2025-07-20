@@ -1,49 +1,70 @@
 <?php
-require_once __DIR__.'/../models/Cupom.php';
+require_once __DIR__ . '/../models/Cupom.php';
+require_once __DIR__ . '/../core/Database.php';
 
 class CupomController
 {
-    private PDO $conn;
+    // Instância do wrapper Database para executar queries com PDO
+    private Database $db;
 
-    public function __construct(PDO $conn)
+    // Construtor recebe uma instância de Database para injeção de dependência
+    public function __construct(Database $db)
     {
-        $this->conn = $conn;
+        $this->db = $db;
     }
 
+    /**
+     * Salva um cupom no banco de dados.
+     * Se o cupom já tem ID, realiza UPDATE.
+     * Caso contrário, realiza INSERT e atualiza o ID do objeto cupom.
+     *
+     * @param Cupom $cupom
+     * @return bool Retorna true se a operação foi bem-sucedida, false caso contrário.
+     */
     public function salvar(Cupom $cupom): bool
     {
         if ($cupom->getId()) {
-            $sql = "UPDATE cupons SET desconto = :desconto, minimo_subtotal = :minimoSubtotal, validade = :validade WHERE id = :id";
-            $stmt = $this->conn->prepare($sql);
-            return $stmt->execute([
-                ':desconto' => $cupom->getDesconto(),
-                ':minimoSubtotal' => $cupom->getMinimoSubtotal(),
-                ':validade' => $cupom->getValidade(),
-                ':id' => $cupom->getId()
-            ]);
+            // Atualização de cupom existente pelo ID
+            $this->db->query("UPDATE cupons SET desconto = :desconto, minimo_subtotal = :minimoSubtotal, validade = :validade WHERE id = :id");
+            $this->db->bind(':desconto', $cupom->getDesconto());
+            $this->db->bind(':minimoSubtotal', $cupom->getMinimoSubtotal());
+            $this->db->bind(':validade', $cupom->getValidade());
+            $this->db->bind(':id', $cupom->getId());
+            return $this->db->execute();
         } else {
-            $sql = "INSERT INTO cupons (codigo, desconto, minimo_subtotal, validade) VALUES (:codigo, :desconto, :minimoSubtotal, :validade)";
-            $stmt = $this->conn->prepare($sql);
-            $result = $stmt->execute([
-                ':codigo' => $cupom->getCodigo(),
-                ':desconto' => $cupom->getDesconto(),
-                ':minimoSubtotal' => $cupom->getMinimoSubtotal(),
-                ':validade' => $cupom->getValidade()
-            ]);
+            // Inserção de novo cupom
+            $this->db->query("INSERT INTO cupons (codigo, desconto, minimo_subtotal, validade) VALUES (:codigo, :desconto, :minimoSubtotal, :validade)");
+            $this->db->bind(':codigo', $cupom->getCodigo());
+            $this->db->bind(':desconto', $cupom->getDesconto());
+            $this->db->bind(':minimoSubtotal', $cupom->getMinimoSubtotal());
+            $this->db->bind(':validade', $cupom->getValidade());
+
+            $result = $this->db->execute();
+
+            // Se inserção foi bem-sucedida, atualiza o ID do objeto cupom
             if ($result) {
-                $cupom->setId((int)$this->conn->lastInsertId());
+                $cupom->setId((int)$this->db->lastInsertId());
             }
+
             return $result;
         }
     }
 
+    /**
+     * Busca um cupom pelo seu código único.
+     *
+     * @param string $codigo Código do cupom para busca.
+     * @return Cupom|null Retorna o objeto Cupom se encontrado, ou null caso não exista.
+     */
     public function buscarPorCodigo(string $codigo): ?Cupom
     {
-        $stmt = $this->conn->prepare("SELECT * FROM cupons WHERE codigo = :codigo");
-        $stmt->execute([':codigo' => $codigo]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $this->db->query("SELECT * FROM cupons WHERE codigo = :codigo");
+        $this->db->bind(':codigo', $codigo);
+        $row = $this->db->single();
+
         if (!$row) return null;
 
+        // Cria e retorna um objeto Cupom populado com os dados do banco
         return new Cupom(
             $row['codigo'],
             (float)$row['desconto'],
@@ -53,11 +74,18 @@ class CupomController
         );
     }
 
+    /**
+     * Lista todos os cupons cadastrados, ordenados por validade decrescente.
+     *
+     * @return Cupom[] Array de objetos Cupom.
+     */
     public function listarTodos(): array
     {
-        $stmt = $this->conn->query("SELECT * FROM cupons ORDER BY validade DESC");
+        $this->db->query("SELECT * FROM cupons ORDER BY validade DESC");
+        $resultados = $this->db->resultSet();
+
         $cupons = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        foreach ($resultados as $row) {
             $cupons[] = new Cupom(
                 $row['codigo'],
                 (float)$row['desconto'],
@@ -66,12 +94,20 @@ class CupomController
                 (int)$row['id']
             );
         }
+
         return $cupons;
     }
 
+    /**
+     * Deleta um cupom pelo seu ID.
+     *
+     * @param int $id ID do cupom a ser deletado.
+     * @return bool Retorna true se deletado com sucesso, false caso contrário.
+     */
     public function deletar(int $id): bool
     {
-        $stmt = $this->conn->prepare("DELETE FROM cupons WHERE id = :id");
-        return $stmt->execute([':id' => $id]);
+        $this->db->query("DELETE FROM cupons WHERE id = :id");
+        $this->db->bind(':id', $id);
+        return $this->db->execute();
     }
 }

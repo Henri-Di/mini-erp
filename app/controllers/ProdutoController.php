@@ -1,66 +1,110 @@
 <?php
 require_once __DIR__.'/../models/Produto.php';
+require_once __DIR__.'/../core/Database.php';
 
 class ProdutoController
 {
-    private PDO $conn;
+    // Instância da classe Database para interagir com o banco de dados
+    private Database $db;
 
-    public function __construct(PDO $conn)
+    /**
+     * Construtor recebe a instância de Database para execução das queries
+     *
+     * @param Database $db
+     */
+    public function __construct(Database $db)
     {
-        $this->conn = $conn;
+        $this->db = $db;
     }
 
-    // Salvar ou atualizar produto
+    /**
+     * Salva um produto no banco.
+     * Se o produto já possui ID, faz UPDATE.
+     * Caso contrário, realiza INSERT e atualiza o objeto com o ID gerado.
+     *
+     * @param Produto $produto
+     * @return bool True se operação foi bem-sucedida, false caso contrário
+     */
     public function salvar(Produto $produto): bool
     {
         if ($produto->getId()) {
-            $sql = "UPDATE produtos SET nome = :nome, preco = :preco WHERE id = :id";
-            $stmt = $this->conn->prepare($sql);
-            return $stmt->execute([
-                ':nome' => $produto->getNome(),
-                ':preco' => $produto->getPreco(),
-                ':id' => $produto->getId()
-            ]);
+            // Atualiza um produto existente
+            $this->db->query("UPDATE produtos SET nome = :nome, preco = :preco WHERE id = :id");
+            $this->db->bind(':nome', $produto->getNome());
+            $this->db->bind(':preco', $produto->getPreco());
+            $this->db->bind(':id', $produto->getId(), PDO::PARAM_INT);
+
+            return $this->db->execute();
         } else {
-            $sql = "INSERT INTO produtos (nome, preco) VALUES (:nome, :preco)";
-            $stmt = $this->conn->prepare($sql);
-            $result = $stmt->execute([
-                ':nome' => $produto->getNome(),
-                ':preco' => $produto->getPreco()
-            ]);
+            // Insere um novo produto com data de criação atual
+            $this->db->query("INSERT INTO produtos (nome, preco, criado_em) VALUES (:nome, :preco, NOW())");
+            $this->db->bind(':nome', $produto->getNome());
+            $this->db->bind(':preco', $produto->getPreco());
+
+            $result = $this->db->execute();
+
+            // Atualiza o objeto com o ID gerado pelo banco após inserção
             if ($result) {
-                $produto->setId((int)$this->conn->lastInsertId());
+                $produto->setId((int)$this->db->lastInsertId());
             }
+
             return $result;
         }
     }
 
-    // Buscar por id
+    /**
+     * Busca um produto pelo seu ID.
+     *
+     * @param int $id ID do produto
+     * @return Produto|null Retorna o produto encontrado ou null caso não exista
+     */
     public function buscarPorId(int $id): ?Produto
     {
-        $stmt = $this->conn->prepare("SELECT * FROM produtos WHERE id = :id");
-        $stmt->execute([':id' => $id]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$row) return null;
+        $this->db->query("SELECT * FROM produtos WHERE id = :id");
+        $this->db->bind(':id', $id, PDO::PARAM_INT);
 
+        $row = $this->db->single();
+
+        if (!$row) {
+            // Retorna null se produto não encontrado
+            return null;
+        }
+
+        // Retorna objeto Produto preenchido com dados do banco
         return new Produto($row['nome'], (float)$row['preco'], (int)$row['id'], $row['criado_em']);
     }
 
-    // Listar todos
+    /**
+     * Retorna uma lista de todos os produtos cadastrados, ordenados pela data de criação (mais recentes primeiro).
+     *
+     * @return Produto[] Array de objetos Produto
+     */
     public function listarTodos(): array
     {
-        $stmt = $this->conn->query("SELECT * FROM produtos ORDER BY criado_em DESC");
+        $this->db->query("SELECT * FROM produtos ORDER BY criado_em DESC");
+        $resultados = $this->db->resultSet();
+
         $produtos = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+
+        // Converte cada linha do resultado em um objeto Produto
+        foreach ($resultados as $row) {
             $produtos[] = new Produto($row['nome'], (float)$row['preco'], (int)$row['id'], $row['criado_em']);
         }
+
         return $produtos;
     }
 
-    // Deletar
+    /**
+     * Remove um produto pelo seu ID.
+     *
+     * @param int $id ID do produto a ser removido
+     * @return bool True se remoção foi bem-sucedida, false caso contrário
+     */
     public function deletar(int $id): bool
     {
-        $stmt = $this->conn->prepare("DELETE FROM produtos WHERE id = :id");
-        return $stmt->execute([':id' => $id]);
+        $this->db->query("DELETE FROM produtos WHERE id = :id");
+        $this->db->bind(':id', $id, PDO::PARAM_INT);
+
+        return $this->db->execute();
     }
 }
